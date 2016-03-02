@@ -1,3 +1,5 @@
+import struct
+
 from Authenticator import Challenge
 from Authenticator import Response
 import hashlib
@@ -6,8 +8,14 @@ import random
 
 class Authenticator:
     secret = 'secret'
+    headerLength = 4
     challenge_counter = 0
     random_generator = random.SystemRandom()
+    REQUEST_TYPE = 0x00
+    CHALLENGE_TYPE = 0x01
+    RESPONSE_TYPE = 0x02
+    SUCCESS_TYPE = 0x03
+    FAILURE_TYPE = 0x04
 
     def __init__(self, secret):
         self.secret = secret
@@ -27,7 +35,7 @@ class Authenticator:
     def generate_challenge(self):
         """Generate a new challenge with a random value"""
         challenge_value = self.random_generator.randint(1, 4096)
-        challenge = Challenge(self.challenge_counter, challenge_value)
+        challenge = Challenge.Challenge(self.challenge_counter, challenge_value)
         self.challenge_counter += 1
         return challenge
 
@@ -37,5 +45,11 @@ class Authenticator:
         """
         response_plain = challenge.identifier + self.secret + challenge.value
         response_hashed = hashlib.sha1(response_plain)
-        response_obj = Response(challenge.identifier, response_hashed)
+        response_obj = Response.Response(challenge.identifier, response_hashed)
         return response_obj
+
+    def generate_packet(self, type, id, data):
+        packet_length = self.headerLength + len(data)
+        packet_format = '!BBH' + str(len(data)) + 's'
+        packet = struct.pack(packet_format, type, id, packet_length, data)
+        return packet
