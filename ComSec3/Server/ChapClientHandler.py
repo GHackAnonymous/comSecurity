@@ -1,65 +1,95 @@
-import socket
-import struct
-import threading
 import socketserver
+
 from Authenticator.Authenticator import *
+from Authenticator.Confirmation import Confirmation
+from Authenticator.Request import Request
 
 
 class ChapClientHandler(socketserver.BaseRequestHandler):
-    chapChallenge = None
-    chapResponse = None
+    chap_request = None
+    chap_challenge = None
+    chap_response = None
+    chap_confirmation = None
     authenticator = Authenticator("Secret")
+    name = "Server"
 
     def handle(self):
         try:
-            requestOk = self.wait_request()
-            if requestOk is True:
+            request_ok = self.wait_request()
+            if request_ok is True:
                 self.send_challenge()
-                responseOK = self.wait_response()
-                if responseOK is True:
-                    challengeOK = Authenticator.check_response(self.chapChallenge, self.chapResponse)
-                    if challengeOK is True:
-                        self.send_confirmation()
+                response_ok = self.wait_response()
+                if response_ok is True:
+                    challenge_ok = self.authenticator.check_response(self.chap_challenge, self.chap_response)
+                    if challenge_ok is True:
+                        self.send_success()
                     else:
                         self.send_failure()
-        except IOError:
-            print("Failure in the communications")
+        except IOError as msg:
+            print("Failure in the communications: ", msg)
         finally:
             self.finish()
 
     def send_challenge(self):
-        challenge = Authenticator.generate_challenge(self.authenticator)
-        self.chapChallenge = challenge
-        packet = Authenticator.generate_packet(self.authenticator, 1, challenge.identifier, challenge.value)
-        self.request.send(packet)
+        ret_val = False
+        challenge = Authenticator.generate_challenge(self.authenticator, self.name)
+        self.chap_challenge = challenge
+        packet = challenge.to_packet()
+        try:
+            self.request.send(packet)
+            ret_val = True
+        except IOError as msg:
+            print("Error sending challenge: ", msg)
+        return ret_val
 
     def wait_request(self):
-        type = self.request.recv(1)
-        if type == 0:
-            id = self.request.recv(1)
-            length = self.request.recv(2)
-            data = self.request.recv(length - Authenticator.headerLength)
-            return True
-        else:
-            return False
+        ret_val = False
+        try:
+            msg_type = self.request.recv(1)
+            if msg_type == 0:
+                msg_id = self.request.recv(1)
+                msg_length = self.request.recv(2)
+                msg_data = self.request.recv(msg_length - Authenticator.headerLength)
+                if msg_id == 0:
+                    self.chap_request = Request(msg_data)
+                    ret_val = True
+        except IOError as msg:
+            print("Error receiving request: ", msg)
+        return ret_val
 
     def wait_response(self):
-        type = self.request.recv(1)
-        if type == 2:
-            id = self.request.recv(1)
-            length = self.request.recv(2)
-            data = self.request.recv(length - Authenticator.headerLength)
-            self.chapResponse = Response.Response(id, data)
-            return True
-        else:
-            return False
+        ret_val = False
+        try:
+            msg_type = self.request.recv(1)
+            if msg_type == 2:
+                msg_id = self.request.recv(1)
+                msg_length = self.request.recv(2)
+                msg_data = self.request.recv(msg_length - Authenticator.headerLength)
+                self.chap_response = Response.Response(msg_id, msg_data, self.name)
+                ret_val = True
+        except IOError as msg:
+            print("Error receiving the response: ", msg)
+        return ret_val
 
-    def send_confirmation(self):
-        packet = Authenticator.generate_packet(self.authenticator, 3, self.chapResponse.identifier,
-                                               "Correctly Authenticated")
-        self.request.sendall(packet)
+    def send_success(self):
+        ret_val = False
+        self.chap_confirmation = Confirmation(self.chap_challenge.identifier, "Correctly authenticated",
+                                              Confirmation.TYPE_SUCCESS)
+        packet = self.chap_confirmation.to_packet()
+        try:
+            self.request.sendall(packet)
+            ret_val = True
+        except IOError as msg:
+            print("Error sending success message: ", msg)
+        return ret_val
 
     def send_failure(self):
-        packet = Authenticator.generate_packet(self.authenticator, 3, self.chapResponse.identifier,
-                                               "Authentication Error")
-        self.request.sendall(packet)
+        ret_val = False
+        self.chap_confirmation = Confirmation(self.chap_challenge.identifier, "Auth error", Confirmation.TYPE_FAILURE)
+        packet = self.chap_confirmation.to_packet()
+        try:
+            self.request.sendall(packet)
+            ret_val = True
+        except IOError as msg:
+            print("Error sending auth failure message: ", msg)
+        return ret_val

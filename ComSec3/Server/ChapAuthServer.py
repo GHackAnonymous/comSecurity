@@ -1,8 +1,7 @@
-import socketserver
 from Server.ChapClientHandler import *
 
 
-class ChapAuthServer():
+class ChapAuthServer:
     host = None
     port = None
     server = None
