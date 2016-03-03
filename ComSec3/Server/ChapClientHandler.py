@@ -1,9 +1,12 @@
+import logging
 import socketserver
 
-from Authenticator.Authenticator import Authenticator
-from Authenticator.Confirmation import Confirmation
-from Authenticator.Request import Request
+from Auth.Authenticator import Authenticator
+from Auth.Confirmation import Confirmation
+from Auth.Request import Request
+from Auth.Response import Response
 
+logger = logging.getLogger(__name__)
 
 class ChapClientHandler(socketserver.BaseRequestHandler):
     chap_request = None
@@ -26,9 +29,7 @@ class ChapClientHandler(socketserver.BaseRequestHandler):
                     else:
                         self.send_failure()
         except IOError as msg:
-            print("Failure in the communications: ", msg)
-        finally:
-            self.finish()
+            logger.error("Failure in the communications: %s", msg)
 
     def send_challenge(self):
         ret_val = False
@@ -39,36 +40,36 @@ class ChapClientHandler(socketserver.BaseRequestHandler):
             self.request.send(packet)
             ret_val = True
         except IOError as msg:
-            print("Error sending challenge: ", msg)
+            logger.error("Error sending challenge: %s", msg)
         return ret_val
 
     def wait_request(self):
         ret_val = False
         try:
-            msg_type = self.request.recv(1)
-            if msg_type == 0:
-                msg_id = self.request.recv(1)
-                msg_length = self.request.recv(2)
+            msg_type = int.from_bytes(self.request.recv(1), byteorder='big')
+            if msg_type == Authenticator.REQUEST_TYPE:
+                msg_id = int.from_bytes(self.request.recv(1), byteorder='big')
+                msg_length = int.from_bytes(self.request.recv(2), byteorder='big')
                 msg_data = self.request.recv(msg_length - Authenticator.headerLength)
-                if msg_id == 0:
+                if msg_id == 0x00:
                     self.chap_request = Request(msg_data)
                     ret_val = True
         except IOError as msg:
-            print("Error receiving request: ", msg)
+            logger.error("Error receiving request: %s", msg)
         return ret_val
 
     def wait_response(self):
         ret_val = False
         try:
-            msg_type = self.request.recv(1)
-            if msg_type == 2:
-                msg_id = self.request.recv(1)
-                msg_length = self.request.recv(2)
+            msg_type = int.from_bytes(self.request.recv(1), byteorder='big')
+            if msg_type == Authenticator.RESPONSE_TYPE:
+                msg_id = int.from_bytes(self.request.recv(1), byteorder='big')
+                msg_length = int.from_bytes(self.request.recv(2), byteorder='big')
                 msg_data = self.request.recv(msg_length - Authenticator.headerLength)
-                self.chap_response = Response.Response(msg_id, msg_data, self.name)
+                self.chap_response = Response(msg_id, msg_data, self.name)
                 ret_val = True
         except IOError as msg:
-            print("Error receiving the response: ", msg)
+            logger.error("Error receiving the response: %s", msg)
         return ret_val
 
     def send_success(self):
@@ -80,7 +81,7 @@ class ChapClientHandler(socketserver.BaseRequestHandler):
             self.request.sendall(packet)
             ret_val = True
         except IOError as msg:
-            print("Error sending success message: ", msg)
+            logger.error("Error sending success message: %s", msg)
         return ret_val
 
     def send_failure(self):
@@ -91,5 +92,5 @@ class ChapClientHandler(socketserver.BaseRequestHandler):
             self.request.sendall(packet)
             ret_val = True
         except IOError as msg:
-            print("Error sending auth failure message: ", msg)
+            logger.error("Error sending auth failure message: %s", msg)
         return ret_val

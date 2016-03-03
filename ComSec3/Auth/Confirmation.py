@@ -1,6 +1,6 @@
 import struct
 
-from .Authenticator import Authenticator
+from Auth.Authenticator import *
 
 
 class Confirmation:
@@ -17,11 +17,14 @@ class Confirmation:
         self.success = success
 
     def to_packet(self):
-        packet_format = '!BBHs'
         packet_length = Authenticator.HEADER_LENGTH + len(self.message)
+        packet_format = '!BBH' + str(packet_length) + 's'
         if self.success is True:
             packet_type = Authenticator.SUCCESS_TYPE
         else:
             packet_type = Authenticator.FAILURE_TYPE
-        packet = struct.pack(packet_format, packet_type, packet_length, self.message)
+        packet = struct.pack(packet_format
+                             , packet_type
+                             , packet_length
+                             , self.message.encode('utf-8'))
         return packet

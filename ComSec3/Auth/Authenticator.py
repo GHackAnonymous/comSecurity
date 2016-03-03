@@ -1,8 +1,8 @@
 import hashlib
 import random
 
-from .Challenge import Challenge
-from .Response import Response
+from Auth.Challenge import *
+from Auth.Response import *
 
 
 class Authenticator:
@@ -41,7 +41,7 @@ class Authenticator:
         :param name:
         """
         challenge_value = self.random_generator.randint(1, 4096)
-        challenge = Challenge.Challenge(self.challenge_counter, challenge_value, name)
+        challenge = Challenge(self.challenge_counter, challenge_value, name)
         self.challenge_counter += 1
         return challenge
 
@@ -52,6 +52,6 @@ class Authenticator:
         """
         response_plain = challenge.identifier + self.secret + challenge.value
         response_hashed = hashlib.sha1(response_plain)
-        response_obj = Response.Response(challenge.identifier, response_hashed, name)
+        response_obj = Response(challenge.identifier, response_hashed, name)
         return response_obj
 
