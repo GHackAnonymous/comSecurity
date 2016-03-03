@@ -1,4 +1,5 @@
-from Server.ChapClientHandler import *
+import socketserver
+from .ChapClientHandler import ChapClientHandler
 
 
 class ChapAuthServer:

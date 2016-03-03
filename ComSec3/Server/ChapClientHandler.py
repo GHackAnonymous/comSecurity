@@ -1,6 +1,6 @@
 import socketserver
 
-from Authenticator.Authenticator import *
+from Authenticator.Authenticator import Authenticator
 from Authenticator.Confirmation import Confirmation
 from Authenticator.Request import Request
 

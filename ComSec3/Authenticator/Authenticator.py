@@ -1,8 +1,8 @@
 import hashlib
 import random
 
-from Authenticator import Challenge
-from Authenticator import Response
+from .Challenge import Challenge
+from .Response import Response
 
 
 class Authenticator:

@@ -1,6 +1,6 @@
 import struct
 
-from Authenticator.Authenticator import *
+from Authenticator import Authenticator
 
 
 class Challenge:

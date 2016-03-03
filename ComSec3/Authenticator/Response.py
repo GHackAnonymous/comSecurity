@@ -1,6 +1,6 @@
 import struct
 
-from Authenticator.Authenticator import Authenticator
+from Authenticator import Authenticator
 
 
 class Response:
